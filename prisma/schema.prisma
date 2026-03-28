@@ -1,0 +1,254 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// CORE — Entidades compartidas por todos los módulos
+// ============================================================
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String   // "Veltrium Tech SpA"
+  rut         String   @unique
+  address     String?
+  city        String?  // "Iquique"
+  phone       String?
+  email       String?
+  logo        String?  // URL
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        User[]
+  transactions Transaction[]
+  categories   TransactionCategory[]
+  debts        Debt[]
+  clients      Client[]
+  snapshots    MonthlySnapshot[]
+  assets       Asset[]
+  liabilities  Liability[]
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  password    String   // bcrypt hash
+  role        Role     @default(OPERATOR)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions Transaction[]
+}
+
+enum Role {
+  ADMIN
+  ACCOUNTANT
+  OPERATOR
+}
+
+// ============================================================
+// MÓDULO FINANCIERO
+// ============================================================
+
+model TransactionCategory {
+  id        String          @id @default(cuid())
+  name      String          // "Servicio Mant. Eléctrica"
+  type      TransactionType // INCOME or EXPENSE
+  subtype   ExpenseSubtype? // DIRECT_COST or OPERATIONAL (only for expenses)
+  isActive  Boolean         @default(true)
+  sortOrder Int             @default(0)
+  companyId String
+  company   Company         @relation(fields: [companyId], references: [id])
+
+  transactions Transaction[]
+
+  @@unique([name, companyId])
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum ExpenseSubtype {
+  DIRECT_COST
+  OPERATIONAL
+}
+
+model Transaction {
+  id              String            @id @default(cuid())
+  date            DateTime
+  type            TransactionType
+  categoryId      String
+  category        TransactionCategory @relation(fields: [categoryId], references: [id])
+  description     String
+  amount          Int               // Monto bruto CON IVA (en CLP, sin decimales)
+  documentType    DocumentType      @default(NO_DOCUMENT)
+  taxAmount       Int               @default(0) // IVA calculado
+  netAmount       Int               // Monto neto SIN IVA
+  paymentMethod   PaymentMethod     @default(TRANSFER)
+  clientSupplier  String?           // Texto libre (después se vinculará a Client)
+  clientId        String?           // FK opcional a Client
+  client          Client?           @relation(fields: [clientId], references: [id])
+  notes           String?
+  monthYear       String            // "2026-04" — calculado al crear
+  
+  // Auditoría
+  createdById     String
+  createdBy       User              @relation(fields: [createdById], references: [id])
+  companyId       String
+  company         Company           @relation(fields: [companyId], references: [id])
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  isVoided        Boolean           @default(false) // Soft delete para auditoría
+  voidReason      String?
+
+  @@index([companyId, monthYear])
+  @@index([companyId, type])
+  @@index([companyId, categoryId])
+}
+
+enum DocumentType {
+  INVOICE     // Factura — genera crédito/débito IVA
+  RECEIPT     // Boleta — IVA incluido pero NO genera crédito fiscal
+  NO_DOCUMENT // Sin documento
+}
+
+enum PaymentMethod {
+  TRANSFER
+  CASH
+  CHECK
+  CREDIT_30
+  CREDIT_60
+}
+
+model Debt {
+  id             String       @id @default(cuid())
+  name           String       // "Crédito Banco Itaú"
+  initialBalance Int          // Saldo inicial
+  currentBalance Int          // Saldo actual (se recalcula)
+  monthlyRate    Float        // Tasa mensual (ej: 0.021 = 2.1%)
+  basePayment    Int          // Cuota base mensual
+  totalPayments  Int?         // Número total de cuotas (null = rotativo)
+  startDate      DateTime
+  status         DebtStatus   @default(ACTIVE)
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  payments DebtPayment[]
+}
+
+enum DebtStatus {
+  ACTIVE
+  PAID
+  DELINQUENT
+  RESTRUCTURED
+}
+
+model DebtPayment {
+  id               String   @id @default(cuid())
+  debtId           String
+  debt             Debt     @relation(fields: [debtId], references: [id])
+  month            String   // "2026-04"
+  amountPaid       Int      // Lo que realmente se pagó
+  interestCharged  Int      // Interés calculado del mes
+  principalPaid    Int      // Capital amortizado (pago - interés)
+  balanceAfter     Int      // Saldo después del pago
+  createdAt        DateTime @default(now())
+
+  @@unique([debtId, month])
+}
+
+model MonthlySnapshot {
+  id                      String   @id @default(cuid())
+  month                   String   @unique // "2026-04"
+  totalIncome             Int
+  totalDirectCosts        Int
+  grossMargin             Int
+  grossMarginPercent      Float
+  totalOperationalExpenses Int
+  netProfit               Int
+  netMarginPercent        Float
+  taxDebit                Int      // IVA Débito
+  taxCredit               Int      // IVA Crédito
+  taxPayable              Int      // IVA a pagar
+  totalDebtBalance        Int      // Deuda total al cierre
+  totalDebtPaid           Int      // Total pagado a deudas en el mes
+  jobsCompleted           Int      @default(0)
+  newClients              Int      @default(0)
+  notes                   String?
+  companyId               String
+  company                 Company  @relation(fields: [companyId], references: [id])
+  createdAt               DateTime @default(now())
+
+  @@unique([month, companyId])
+}
+
+// ============================================================
+// BALANCE GENERAL
+// ============================================================
+
+model Asset {
+  id        String    @id @default(cuid())
+  name      String    // "Caja / Cuenta empresa"
+  value     Int       // Valor actual
+  type      AssetType
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id])
+  updatedAt DateTime  @updatedAt
+}
+
+enum AssetType {
+  CURRENT      // Corriente (caja, cuentas por cobrar)
+  NON_CURRENT  // No corriente (equipos, vehículos)
+}
+
+model Liability {
+  id        String         @id @default(cuid())
+  name      String
+  value     Int
+  type      LiabilityType
+  companyId String
+  company   Company        @relation(fields: [companyId], references: [id])
+  updatedAt DateTime       @updatedAt
+}
+
+enum LiabilityType {
+  CURRENT      // Corriente (< 1 año)
+  NON_CURRENT  // No corriente (> 1 año)
+}
+
+// ============================================================
+// CRM
+// ============================================================
+
+model Client {
+  id          String   @id @default(cuid())
+  name        String
+  rut         String?
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  city        String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions Transaction[]
+
+  @@unique([rut, companyId])
+}
