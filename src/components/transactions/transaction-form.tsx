@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/input" // shadcn input handles textarea ok enough or I use native
+import { Textarea } from "@/components/ui/textarea"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon, Loader2 } from "lucide-react"
@@ -31,9 +31,11 @@ import { formatCurrency } from "@/hooks/use-currency"
 
 export function TransactionForm({ 
   categories,
+  projects = [],
   onSuccess 
 }: { 
   categories: any[],
+  projects?: any[],
   onSuccess: () => void 
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -50,6 +52,12 @@ export function TransactionForm({
       paymentMethod: "TRANSFER" as any,
       clientSupplier: "",
       notes: "",
+      currency: "CLP" as any,
+      status: "PAID" as any,
+      originalAmount: undefined,
+      exchangeRate: undefined,
+      folio: "",
+      projectId: "none",
     },
   })
 
@@ -268,6 +276,55 @@ export function TransactionForm({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Estado de Flujo</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <span data-slot="select-value">{field.value === "PAID" ? "En Caja (Pagado)" : "Devengado (Pendiente)"}</span>
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="PAID">En Caja (Pagado)</SelectItem>
+                    <SelectItem value="PENDING">Devengado (Pendiente)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription className="text-[10px]">Las transacciones pendientes no suman a la liquidez.</FormDescription>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="projectId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Centro de Costo</FormLabel>
+                <Select onValueChange={(val) => field.onChange(val === 'none' ? undefined : val)} value={field.value || 'none'}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <span data-slot="select-value">
+                        {field.value && field.value !== 'none' ? projects.find(p => p.id === field.value)?.name : "Sin Centro (General)"}
+                      </span>
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">Sin Centro (General)</SelectItem>
+                    {projects.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
             name="paymentMethod"
             render={({ field }) => (
               <FormItem>
@@ -293,6 +350,19 @@ export function TransactionForm({
             )}
           />
 
+          <FormField
+            control={form.control}
+            name="clientSupplier"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cliente / Proveedor</FormLabel>
+                <FormControl>
+                  <Input placeholder="Folio SII u orden..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <FormField
             control={form.control}
             name="clientSupplier"

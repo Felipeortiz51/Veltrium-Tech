@@ -31,10 +31,17 @@ export default async function TransactionsPage() {
   // Cargar transacciones recientes
   const transactions = await getTransactions(company.id)
 
+  // Cargar proyectos activos (B2B)
+  const projects = await prisma.project.findMany({
+    where: { companyId: company.id, status: 'ACTIVE' },
+    orderBy: { createdAt: 'desc' }
+  })
+
   return (
     <TransactionClient 
       transactions={transactions} 
       categories={categories} 
+      projects={projects}
     />
   )
 }

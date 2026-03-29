@@ -12,6 +12,8 @@ export async function createClientAction(data: {
   notes?: string
 }) {
   try {
+    // TODO(SECURITY): Reemplazar findFirst arbitrario por sesión NextAuth real (ej: session.user.companyId)
+    // para evitar cruce de datos entre diferentes empresas en el mismo servidor.
     const company = await prisma.company.findFirst()
     if (!company) throw new Error("No company found")
 

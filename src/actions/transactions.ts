@@ -12,6 +12,9 @@ const DEFAULT_USER_ID = 'clp8a2y4g001xyzuser456'
 import prisma from '@/lib/prisma'
 
 async function getSessionContext() {
+  // TODO(SECURITY): MVP only. Current implementation takes the first available company/user arbitrarily.
+  // In a multi-tenant environment, this will cause cross-tenant data leaks.
+  // Must be refactored to use NextAuth session exactly like: session.user.companyId
   const company = await prisma.company.findFirst()
   const user = await prisma.user.findFirst()
   
@@ -28,7 +31,10 @@ export async function createTransactionAction(data: TransactionFormValues) {
     return { success: true }
   } catch (error: any) {
     console.error(error)
-    return { success: false, error: "Ha ocurrido un error al guardar la transacción." }
+    if (error?.code === 'P2002') {
+      return { success: false, error: "Ya existe un registro con esos datos únicos." }
+    }
+    return { success: false, error: error.message || "Ha ocurrido un error al guardar la transacción." }
   }
 }
 
@@ -42,7 +48,10 @@ export async function updateTransactionAction(data: TransactionFormValues) {
     return { success: true }
   } catch (error: any) {
     console.error(error)
-    return { success: false, error: "Verifique si el mes está cerrado o los datos ingresados." }
+    if (error?.code === 'P2002') {
+      return { success: false, error: "Conflicto de duplicidad en la base de datos." }
+    }
+    return { success: false, error: error.message || "Verifique si el mes está cerrado o los datos ingresados." }
   }
 }
 
@@ -57,6 +66,6 @@ export async function voidTransactionAction(data: VoidTransactionValues) {
     return { success: true }
   } catch (error: any) {
     console.error(error)
-    return { success: false, error: "Error al anular la transacción." }
+    return { success: false, error: error.message || "Error al anular la transacción." }
   }
 }

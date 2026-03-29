@@ -7,9 +7,8 @@ export async function getMonthlyMetrics(companyId: string, month: Date) {
   // 1. Obtener todas las transacciones del mes
   const transactions = await prisma.transaction.findMany({
     where: {
-      category: {
-        companyId: companyId
-      },
+      companyId: companyId,
+      isVoided: false,
       date: {
         gte: startOfMonth,
         lte: endOfMonth
@@ -23,6 +22,7 @@ export async function getMonthlyMetrics(companyId: string, month: Date) {
   // 2. Acumuladores B2B Veltrium
   let sumIngresosBrutos = 0
   let sumIngresosNetos = 0
+  let flujoCajaReal = 0
   
   let sumCostosDirectosBruto = 0
   let sumCostosDirectosNeto = 0
@@ -39,6 +39,9 @@ export async function getMonthlyMetrics(companyId: string, month: Date) {
       sumIngresosBrutos += t.amount
       sumIngresosNetos += t.netAmount
       sumIvaDebito += t.taxAmount
+      if (t.status === "PAID") { // Accrual vs Cash Flow
+        flujoCajaReal += t.amount
+      }
     } else if (t.type === "EXPENSE") {
       if (t.category.subtype === "DIRECT_COST") {
         sumCostosDirectosBruto += t.amount
@@ -65,6 +68,7 @@ export async function getMonthlyMetrics(companyId: string, month: Date) {
   return {
     ingresosBrutos: sumIngresosBrutos,
     ingresosNetos: sumIngresosNetos,
+    flujoCajaReal: flujoCajaReal,
     costosDirectosNeto: sumCostosDirectosNeto,
     gastosOperacionalesNeto: sumGastosOperacionalesNeto,
     margenBruto: margenBruto,
@@ -81,9 +85,8 @@ export async function getMonthlyMetrics(companyId: string, month: Date) {
 export async function getCompanyHistory(companyId: string) {
   const transactions = await prisma.transaction.findMany({
     where: {
-      category: {
-        companyId: companyId
-      }
+      companyId: companyId,
+      isVoided: false
     },
     include: {
       category: true

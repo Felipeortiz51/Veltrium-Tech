@@ -8,7 +8,8 @@ export async function createTransaction(data: TransactionFormValues, companyId: 
   let taxAmount = 0
   let netAmount = data.amount
 
-  if (data.documentType === DocumentType.INVOICE) {
+  if (data.documentType === DocumentType.INVOICE || 
+      (data.documentType === DocumentType.RECEIPT && data.type === 'INCOME')) {
     taxAmount = Math.round((data.amount / 1.19) * 0.19)
     netAmount = data.amount - taxAmount
   }
@@ -29,8 +30,15 @@ export async function createTransaction(data: TransactionFormValues, companyId: 
       netAmount: netAmount,
       paymentMethod: data.paymentMethod,
       clientSupplier: data.clientSupplier,
+      clientId: data.clientId,
       notes: data.notes,
       monthYear: monthYear,
+      status: data.status as any,
+      currency: data.currency as any,
+      originalAmount: data.originalAmount,
+      exchangeRate: data.exchangeRate,
+      folio: data.folio,
+      projectId: data.projectId,
       companyId: companyId,
       createdById: userId,
     }
@@ -46,7 +54,8 @@ export async function updateTransaction(id: string, data: TransactionFormValues,
   let taxAmount = 0
   let netAmount = data.amount
 
-  if (data.documentType === DocumentType.INVOICE) {
+  if (data.documentType === DocumentType.INVOICE || 
+      (data.documentType === DocumentType.RECEIPT && data.type === 'INCOME')) {
     taxAmount = Math.round((data.amount / 1.19) * 0.19)
     netAmount = data.amount - taxAmount
   }
@@ -67,8 +76,15 @@ export async function updateTransaction(id: string, data: TransactionFormValues,
       netAmount: netAmount,
       paymentMethod: data.paymentMethod,
       clientSupplier: data.clientSupplier,
+      clientId: data.clientId,
       notes: data.notes,
       monthYear: monthYear,
+      status: data.status as any,
+      currency: data.currency as any,
+      originalAmount: data.originalAmount,
+      exchangeRate: data.exchangeRate,
+      folio: data.folio,
+      projectId: data.projectId,
     }
   })
 

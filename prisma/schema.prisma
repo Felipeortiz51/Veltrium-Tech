@@ -31,6 +31,7 @@ model Company {
   snapshots    MonthlySnapshot[]
   assets       Asset[]
   liabilities  Liability[]
+  projects     Project[]
 }
 
 model User {
@@ -98,8 +99,18 @@ model Transaction {
   clientSupplier  String?           // Texto libre (después se vinculará a Client)
   clientId        String?           // FK opcional a Client
   client          Client?           @relation(fields: [clientId], references: [id])
+  projectId       String?
+  project         Project?          @relation(fields: [projectId], references: [id])
   notes           String?
   monthYear       String            // "2026-04" — calculado al crear
+  
+  // Refactor B2B
+  status          TransactionStatus @default(PAID)
+  paidAt          DateTime?
+  currency        CurrencyType      @default(CLP)
+  originalAmount  Float?
+  exchangeRate    Float?
+  folio           String?
   
   // Auditoría
   createdById     String
@@ -128,6 +139,17 @@ enum PaymentMethod {
   CHECK
   CREDIT_30
   CREDIT_60
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+}
+
+enum CurrencyType {
+  CLP
+  USD
+  UF
 }
 
 model Debt {
@@ -203,6 +225,8 @@ model Asset {
   name      String    // "Caja / Cuenta empresa"
   value     Int       // Valor actual
   type      AssetType
+  purchaseDate DateTime?
+  depreciationYears Int?
   companyId String
   company   Company   @relation(fields: [companyId], references: [id])
   updatedAt DateTime  @updatedAt
@@ -249,6 +273,38 @@ model Client {
   updatedAt   DateTime @updatedAt
 
   transactions Transaction[]
+  projects     Project[]
 
   @@unique([rut, companyId])
+}
+
+// ============================================================
+// PROJECTS / CENTROS DE COSTO
+// ============================================================
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String   // "Mantención Chiller Faena X"
+  code        String?  // Ej: "PRJ-2026-001"
+  status      ProjectStatus @default(ACTIVE)
+  clientId    String?
+  client      Client?  @relation(fields: [clientId], references: [id])
+  startDate   DateTime?
+  endDate     DateTime?
+  budget      Int?
+  
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  transactions Transaction[]
+
+  @@index([companyId])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
 }

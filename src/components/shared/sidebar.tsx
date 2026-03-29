@@ -10,6 +10,7 @@ import {
   History,
   Landmark,
   LineChart,
+  Briefcase,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +19,7 @@ const routes = [
   { href: '/transactions', label: 'Transacciones', icon: ReceiptText },
   { href: '/simulator', label: 'Simulador', icon: LineChart },
   { href: '/history', label: 'Historial', icon: History },
+  { href: '/projects', label: 'Proyectos B2B', icon: Briefcase },
   { href: '/clients', label: 'Clientes', icon: CalendarDays },
   { href: '/balance', label: 'Balance General', icon: Landmark },
 ]

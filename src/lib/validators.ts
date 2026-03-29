@@ -8,18 +8,18 @@ export const transactionFormSchema = z.object({
   date: z.date({
     required_error: "La fecha es requerida.",
   }),
-  type: z.nativeEnum(TransactionType, {
-    required_error: "Debes seleccionar un tipo de transacción.",
-  }),
+  type: z.nativeEnum(TransactionType),
   categoryId: z.string().min(1, "Debes seleccionar una categoría."),
   description: z.string().min(3, "La descripción debe tener al menos 3 caracteres."),
   amount: z.coerce.number().positive("El monto debe ser numérico y mayor a cero."),
-  documentType: z.nativeEnum(DocumentType, {
-    required_error: "El tipo de documento es requerido.",
-  }),
-  paymentMethod: z.nativeEnum(PaymentMethod, {
-    required_error: "El método de pago es requerido.",
-  }),
+  documentType: z.nativeEnum(DocumentType),
+  paymentMethod: z.nativeEnum(PaymentMethod),
+  status: z.enum(['PENDING', 'PAID']).default('PAID'),
+  currency: z.enum(['CLP', 'USD', 'UF']).default('CLP'),
+  originalAmount: z.coerce.number().optional(),
+  exchangeRate: z.coerce.number().optional(),
+  folio: z.string().optional(),
+  projectId: z.string().optional(),
   clientSupplier: z.string().optional(),
   clientId: z.string().optional(),
   notes: z.string().optional(),
@@ -35,3 +35,13 @@ export const voidTransactionSchema = z.object({
 })
 
 export type VoidTransactionValues = z.infer<typeof voidTransactionSchema>
+
+// ====== PROJECTS ======
+
+export const projectFormSchema = z.object({
+  name: z.string().min(3, "El nombre del proyecto debe tener al menos 3 caracteres."),
+  code: z.string().optional(),
+  budget: z.coerce.number().optional(),
+})
+
+export type ProjectFormValues = z.infer<typeof projectFormSchema>

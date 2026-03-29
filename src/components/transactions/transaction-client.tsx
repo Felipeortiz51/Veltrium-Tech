@@ -17,10 +17,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 export function TransactionClient({ 
   transactions, 
-  categories 
+  categories,
+  projects
 }: { 
   transactions: any[], 
-  categories: any[] 
+  categories: any[],
+  projects: any[]
 }) {
   const [isOpen, setIsOpen] = useState(false)
   
@@ -56,7 +58,7 @@ export function TransactionClient({
                 Ingresa los datos para alimentar el módulo contable. El IVA se calculará automáticamente.
               </DialogDescription>
             </DialogHeader>
-            <TransactionForm categories={categories} onSuccess={() => setIsOpen(false)} />
+            <TransactionForm categories={categories} projects={projects} onSuccess={() => setIsOpen(false)} />
           </DialogContent>
         </Dialog>
       </div>

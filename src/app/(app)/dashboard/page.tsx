@@ -37,18 +37,30 @@ export default async function DashboardPage() {
       {/* KPI Row 1: The Core Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         
-        {/* INGRESOS NETOS */}
+        {/* FLUJO DE CAJA VS DEVENGADO */}
         <div className="rounded-xl border border-border bg-card text-card-foreground shadow-sm p-6 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[100px] z-0" />
           <div className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
-            <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Ingresos Netos</h3>
+            <h3 className="tracking-tight text-sm font-medium text-muted-foreground">Facturado (Devengado)</h3>
             <DollarSign className="h-4 w-4 text-primary" />
           </div>
           <div className="relative z-10 mt-2">
             <div className="text-2xl font-bold text-primary">{formatCurrency(metrics.ingresosNetos)}</div>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center">
-              BRUTO: {formatCurrency(metrics.ingresosBrutos)}
-            </p>
+            
+            <div className="mt-4 pt-3 border-t border-border/50">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-muted-foreground font-medium">Líquido en Caja:</span>
+                <span className={cn("text-sm font-bold", metrics.flujoCajaReal < metrics.ingresosNetos ? "text-amber-500" : "text-green-600")}>
+                  {formatCurrency(metrics.flujoCajaReal)}
+                </span>
+              </div>
+              {metrics.ingresosNetos > metrics.flujoCajaReal && (
+                <p className="text-[10px] text-amber-500 mt-1 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Cuentas por cobrar: {formatCurrency(metrics.ingresosBrutos - metrics.flujoCajaReal)} (Bruto)
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

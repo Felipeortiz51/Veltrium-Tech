@@ -6,6 +6,7 @@ import { AssetType, LiabilityType } from "@prisma/client"
 
 export async function createAssetAction(data: { name: string; value: number; type: AssetType }) {
   try {
+    // TODO(SECURITY): Obtener companyId desde la sesión autenticada (NextAuth) para evitar vulnerabilidad multi-tenant.
     const company = await prisma.company.findFirst()
     if (!company) throw new Error("No company found")
 
