@@ -41,7 +41,7 @@ export function TransactionForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<TransactionFormValues>({
-    resolver: zodResolver(transactionFormSchema),
+    resolver: zodResolver(transactionFormSchema) as any,
     defaultValues: {
       date: new Date(),
       type: "EXPENSE" as any,
@@ -322,7 +322,7 @@ export function TransactionForm({
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField
             control={form.control}
             name="paymentMethod"
@@ -352,31 +352,55 @@ export function TransactionForm({
 
           <FormField
             control={form.control}
-            name="clientSupplier"
+            name="currency"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Cliente / Proveedor</FormLabel>
-                <FormControl>
-                  <Input placeholder="Folio SII u orden..." {...field} />
-                </FormControl>
-                <FormMessage />
+                <FormLabel>Moneda</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <span data-slot="select-value">
+                        {field.value === "CLP" ? "CLP (Pesos)" : field.value === "USD" ? "USD (Dólar)" : "UF"}
+                      </span>
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="CLP">CLP (Pesos)</SelectItem>
+                    <SelectItem value="USD">USD (Dólar)</SelectItem>
+                    <SelectItem value="UF">UF</SelectItem>
+                  </SelectContent>
+                </Select>
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control}
-            name="clientSupplier"
+            name="folio"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Cliente / Proveedor</FormLabel>
+                <FormLabel>Folio SII</FormLabel>
                 <FormControl>
-                  <Input placeholder="Opcional..." {...field} />
+                  <Input placeholder="Ej: 001234" {...field} />
                 </FormControl>
-                <FormMessage />
               </FormItem>
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="clientSupplier"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Cliente / Proveedor</FormLabel>
+              <FormControl>
+                <Input placeholder="Nombre o razón social (opcional)..." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <Button type="submit" disabled={isSubmitting} className="w-full">
           {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

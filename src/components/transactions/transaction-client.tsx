@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { TransactionForm } from './transaction-form'
+import { TransactionRowActions } from './transaction-row-actions'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { formatCurrency } from '@/hooks/use-currency'
@@ -95,6 +96,7 @@ export function TransactionClient({
               <TableHead className="w-[30%]">Descripción</TableHead>
               <TableHead className="text-right">Monto Neto</TableHead>
               <TableHead className="text-right">Monto Total</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -129,6 +131,9 @@ export function TransactionClient({
                   </TableCell>
                   <TableCell className="text-right font-bold">
                     {formatCurrency(t.amount)}
+                  </TableCell>
+                  <TableCell>
+                    <TransactionRowActions transaction={t} />
                   </TableCell>
                 </TableRow>
               ))

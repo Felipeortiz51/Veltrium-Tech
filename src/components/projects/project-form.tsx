@@ -29,7 +29,7 @@ export function ProjectForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<ProjectFormValues>({
-    resolver: zodResolver(projectFormSchema),
+    resolver: zodResolver(projectFormSchema) as any,
     defaultValues: {
       name: "",
       code: "",

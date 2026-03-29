@@ -5,19 +5,17 @@ import { TransactionType, DocumentType, PaymentMethod } from '@prisma/client'
 
 export const transactionFormSchema = z.object({
   id: z.string().optional(),
-  date: z.date({
-    required_error: "La fecha es requerida.",
-  }),
+  date: z.date({ message: "La fecha es requerida." }),
   type: z.nativeEnum(TransactionType),
   categoryId: z.string().min(1, "Debes seleccionar una categoría."),
   description: z.string().min(3, "La descripción debe tener al menos 3 caracteres."),
-  amount: z.coerce.number().positive("El monto debe ser numérico y mayor a cero."),
+  amount: z.number({ message: "El monto debe ser numérico y mayor a cero." }).positive("El monto debe ser mayor a cero."),
   documentType: z.nativeEnum(DocumentType),
   paymentMethod: z.nativeEnum(PaymentMethod),
   status: z.enum(['PENDING', 'PAID']).default('PAID'),
   currency: z.enum(['CLP', 'USD', 'UF']).default('CLP'),
-  originalAmount: z.coerce.number().optional(),
-  exchangeRate: z.coerce.number().optional(),
+  originalAmount: z.number().optional(),
+  exchangeRate: z.number().optional(),
   folio: z.string().optional(),
   projectId: z.string().optional(),
   clientSupplier: z.string().optional(),
