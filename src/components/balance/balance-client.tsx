@@ -17,11 +17,13 @@ import { cn } from "@/lib/utils"
 export function BalanceClient({ 
   assets, 
   manualLiabilities, 
-  autoIvaPayable 
+  autoIvaPayable,
+  autoCashPosition
 }: { 
   assets: Asset[]
   manualLiabilities: Liability[]
-  autoIvaPayable: number 
+  autoIvaPayable: number
+  autoCashPosition: number 
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -36,7 +38,8 @@ export function BalanceClient({
   const [liabilityName, setLiabilityName] = useState("")
   const [liabilityValue, setLiabilityValue] = useState("")
 
-  const totalAssets = assets.reduce((acc, el) => acc + el.value, 0)
+  const totalManualAssets = assets.reduce((acc, el) => acc + el.value, 0)
+  const totalAssets = totalManualAssets + Math.max(0, autoCashPosition)
   const totalManualLiabilities = manualLiabilities.reduce((acc, el) => acc + el.value, 0)
   const totalLiabilities = totalManualLiabilities + autoIvaPayable
 
@@ -170,32 +173,48 @@ export function BalanceClient({
               <span className="text-primary">{formatCurrency(totalAssets)}</span>
             </div>
             <div className="overflow-y-auto max-h-[400px]">
-              {assets.length === 0 ? (
+              {/* AUTO ASSET: EFECTIVO EN CAJA */}
+              {autoCashPosition !== 0 && (
+                <li className="p-4 flex items-center justify-between bg-emerald-500/5 group">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                      <TrendingUp className="h-3 w-3 text-emerald-500" />
+                      Efectivo en Caja
+                    </span>
+                    <span className="text-xs text-muted-foreground">Auto-calculado: Ingresos pagados − Egresos pagados</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-sm tracking-tight text-emerald-600 dark:text-emerald-500">{formatCurrency(autoCashPosition)}</span>
+                    <div className="w-7 h-7" />
+                  </div>
+                </li>
+              )}
+
+              {/* MANUAL ASSETS */}
+              {assets.length === 0 && autoCashPosition === 0 ? (
                 <div className="p-8 text-center text-muted-foreground text-sm">
                   Sin activos registrados. Añade capital o equipos arriba.
                 </div>
               ) : (
-                <ul className="divide-y divide-border/50">
-                  {assets.map(a => (
-                    <li key={a.id} className="p-4 flex items-center justify-between hover:bg-muted/30 group">
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-sm">{a.name}</span>
-                        <span className="text-xs text-muted-foreground">{a.type === 'CURRENT' ? 'Liquidez' : 'Activo Fijo'}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-sm tracking-tight">{formatCurrency(a.value)}</span>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
-                          onClick={() => handleDeleteAsset(a.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                assets.map(a => (
+                  <li key={a.id} className="p-4 flex items-center justify-between hover:bg-muted/30 group">
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-sm">{a.name}</span>
+                      <span className="text-xs text-muted-foreground">{a.type === 'CURRENT' ? 'Liquidez' : 'Activo Fijo'}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-sm tracking-tight">{formatCurrency(a.value)}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-7 w-7 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                        onClick={() => handleDeleteAsset(a.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </li>
+                ))
               )}
             </div>
           </CardContent>

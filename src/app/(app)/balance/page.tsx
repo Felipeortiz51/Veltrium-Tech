@@ -15,13 +15,13 @@ export default async function BalancePage() {
     )
   }
 
-  // 1. Obtener Activos
+  // 1. Obtener Activos (manuales)
   const assets = await prisma.asset.findMany({
     where: { companyId: company.id },
     orderBy: { updatedAt: 'desc' }
   })
 
-  // 2. Obtener Pasivos (Manuales)
+  // 2. Obtener Pasivos (manuales)
   const manualLiabilities = await prisma.liability.findMany({
     where: { companyId: company.id },
     orderBy: { updatedAt: 'desc' }
@@ -31,6 +31,30 @@ export default async function BalancePage() {
   const today = new Date()
   const metrics = await getMonthlyMetrics(company.id, today)
   const autoIvaPayable = Math.max(0, metrics.ivaAPagar)
+
+  // 4. Calcular Efectivo en Caja automáticamente
+  //    Sumamos todos los ingresos PAGADOS y restamos todos los egresos PAGADOS (no anulados)
+  //    Esto refleja el dinero real que ha entrado y salido de la empresa
+  const paidTransactions = await prisma.transaction.findMany({
+    where: {
+      companyId: company.id,
+      isVoided: false,
+      status: 'PAID' as any
+    } as any,
+    select: {
+      type: true,
+      amount: true
+    }
+  })
+
+  let autoCashPosition = 0
+  for (const t of paidTransactions) {
+    if (t.type === 'INCOME') {
+      autoCashPosition += t.amount
+    } else {
+      autoCashPosition -= t.amount
+    }
+  }
 
   return (
     <div className="space-y-8 pb-8">
@@ -45,7 +69,8 @@ export default async function BalancePage() {
       <BalanceClient 
         assets={assets} 
         manualLiabilities={manualLiabilities} 
-        autoIvaPayable={autoIvaPayable} 
+        autoIvaPayable={autoIvaPayable}
+        autoCashPosition={autoCashPosition}
       />
     </div>
   )
