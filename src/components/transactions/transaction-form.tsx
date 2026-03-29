@@ -402,6 +402,24 @@ export function TransactionForm({
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Observaciones internas</FormLabel>
+              <FormControl>
+                <Textarea 
+                  placeholder="Notas privadas: contexto, número de OC, detalle del servicio..." 
+                  className="resize-none h-20"
+                  {...field} 
+                />
+              </FormControl>
+              <FormDescription className="text-[10px]">Solo visible internamente. Útil para auditoría y contexto.</FormDescription>
+            </FormItem>
+          )}
+        />
+
         <Button type="submit" disabled={isSubmitting} className="w-full">
           {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Registrar Transacción

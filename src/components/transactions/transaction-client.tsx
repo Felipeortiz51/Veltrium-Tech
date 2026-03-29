@@ -76,7 +76,9 @@ export function TransactionClient({
         </div>
         <Select value={filterType} onValueChange={(val) => setFilterType(val || "ALL")}>
           <SelectTrigger className="w-[180px] bg-white border-border/50">
-            <SelectValue placeholder="Todos" />
+            <span data-slot="select-value">
+              {filterType === "ALL" ? "Todos los tipos" : filterType === "INCOME" ? "Ingresos" : "Egresos"}
+            </span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Todos los tipos</SelectItem>

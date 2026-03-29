@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from "react"
-import { DollarSign, Settings2, Sigma, TrendingUp, Info } from "lucide-react"
-import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis, TooltipProps } from "recharts"
+import { DollarSign, Settings2, Sigma, TrendingUp, Info, UserPlus, Save, Trash2, FolderOpen } from "lucide-react"
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/hooks/use-currency"
 import { cn } from "@/lib/utils"
 
@@ -15,40 +16,89 @@ interface SimulatorClientProps {
   initialDirectCost: number
 }
 
+interface SavedScenario {
+  id: string
+  name: string
+  fixedCosts: number
+  price: number
+  directCost: number
+  extraStaff: number
+  staffCost: number
+  breakEvenPoint: number
+  profitAt3: number
+  margin: number
+}
+
 export function SimulatorClient({ initialFixedCosts, initialPrice, initialDirectCost }: SimulatorClientProps) {
   const [fixedCosts, setFixedCosts] = useState(initialFixedCosts || 119500)
   const [price, setPrice] = useState(initialPrice || 500000)
   const [directCost, setDirectCost] = useState(initialDirectCost || 150000)
+  
+  // Contratación de personal
+  const [extraStaff, setExtraStaff] = useState(0)
+  const [staffCostPerPerson, setStaffCostPerPerson] = useState(650000)
+  
+  // Escenarios guardados
+  const [scenarios, setScenarios] = useState<SavedScenario[]>([])
+  const [scenarioName, setScenarioName] = useState("")
+  const [showScenarios, setShowScenarios] = useState(false)
 
-  // Desglosar IVA para que el usuario pueda ingresar brutos si quiere y nosotros mostramos el impacto neto.
-  // En tu Excel el usuario define Todo en Netos o Brutos, usaremos Netos como base de rentabilidad pura.
+  // Costos fijos TOTALES (base + personal extra)
+  const totalFixedCosts = fixedCosts + (extraStaff * staffCostPerPerson)
+
   const netPrice = price / 1.19
   const netDirectCost = directCost / 1.19
   
   const marginBrutoPorTrabajo = netPrice - netDirectCost
   const marginPercentage = netPrice > 0 ? (marginBrutoPorTrabajo / netPrice) * 100 : 0
   
-  // Punto de equilibrio bruto
-  const baseEquilibrio = marginBrutoPorTrabajo > 0 ? fixedCosts / marginBrutoPorTrabajo : 0
+  // Punto de equilibrio con costos fijos totales
+  const baseEquilibrio = marginBrutoPorTrabajo > 0 ? totalFixedCosts / marginBrutoPorTrabajo : 0
   const breakEvenPoint = Math.ceil(baseEquilibrio)
 
-  // Generar data para el gráfico y tabla (De 0 a Max Trabajos)
+  // Generar data para el gráfico
   const maxSimulatedJobs = Math.max(12, breakEvenPoint + 5)
   
   const data = []
   for (let jobs = 0; jobs <= maxSimulatedJobs; jobs++) {
     const totalRevenue = netPrice * jobs
-    const totalCost = (netDirectCost * jobs) + fixedCosts
+    const totalCost = (netDirectCost * jobs) + totalFixedCosts
     const margin = marginBrutoPorTrabajo * jobs
-    const profit = margin - fixedCosts
+    const profit = margin - totalFixedCosts
 
-    data.push({
-      jobs,
-      totalRevenue,
-      totalCost,
-      margin,
-      profit
-    })
+    data.push({ jobs, totalRevenue, totalCost, margin, profit })
+  }
+
+  const profitAt3 = (marginBrutoPorTrabajo * (breakEvenPoint + 2)) - totalFixedCosts
+
+  function handleSaveScenario() {
+    if (!scenarioName.trim()) return
+    const newScenario: SavedScenario = {
+      id: Date.now().toString(),
+      name: scenarioName.trim(),
+      fixedCosts,
+      price,
+      directCost,
+      extraStaff,
+      staffCost: extraStaff * staffCostPerPerson,
+      breakEvenPoint,
+      profitAt3,
+      margin: marginPercentage,
+    }
+    setScenarios(prev => [...prev, newScenario])
+    setScenarioName("")
+    setShowScenarios(true)
+  }
+
+  function handleLoadScenario(s: SavedScenario) {
+    setFixedCosts(s.fixedCosts)
+    setPrice(s.price)
+    setDirectCost(s.directCost)
+    setExtraStaff(s.extraStaff)
+  }
+
+  function handleDeleteScenario(id: string) {
+    setScenarios(prev => prev.filter(s => s.id !== id))
   }
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -144,6 +194,48 @@ export function SimulatorClient({ initialFixedCosts, initialPrice, initialDirect
               </div>
             </div>
 
+            {/* SIMULADOR DE CONTRATACIÓN */}
+            <div className="border-t pt-4 space-y-3">
+              <Label className="flex items-center gap-2 text-sm font-semibold">
+                <UserPlus className="h-4 w-4 text-blue-500" />
+                Simulación de Contratación
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="extraStaff" className="text-xs text-muted-foreground">Personas extra</Label>
+                  <Input 
+                    id="extraStaff" 
+                    type="number"
+                    min={0}
+                    className="font-medium"
+                    value={extraStaff}
+                    onChange={(e) => setExtraStaff(parseInt(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="staffCost" className="text-xs text-muted-foreground">Costo c/u $/mes</Label>
+                  <Input 
+                    id="staffCost" 
+                    type="number"
+                    className="font-medium"
+                    value={staffCostPerPerson}
+                    onChange={(e) => setStaffCostPerPerson(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+              {extraStaff > 0 && (
+                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-md p-3 text-xs space-y-1">
+                  <p className="text-blue-700 dark:text-blue-400 font-medium">
+                    +{extraStaff} persona{extraStaff > 1 ? 's' : ''} = <span className="font-bold">{formatCurrency(extraStaff * staffCostPerPerson)}</span>/mes extra
+                  </p>
+                  <p className="text-muted-foreground">
+                    Costos fijos totales: <span className="font-semibold">{formatCurrency(totalFixedCosts)}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* MARGEN NETO */}
             <div className="rounded-lg bg-secondary/30 p-4 border border-border mt-4">
               <div className="flex justify-between items-end mb-1">
                 <Label className="text-xs uppercase tracking-wider font-semibold text-muted-foreground">Margen Neto s/IVA</Label>
@@ -158,6 +250,42 @@ export function SimulatorClient({ initialFixedCosts, initialPrice, initialDirect
                 />
               </div>
               <p className="text-right text-xs mt-1 text-muted-foreground font-medium">{marginPercentage.toFixed(1)}%</p>
+            </div>
+
+            {/* GUARDAR ESCENARIO */}
+            <div className="border-t pt-4 space-y-3">
+              <Label className="flex items-center gap-2 text-sm font-semibold">
+                <Save className="h-4 w-4 text-primary" />
+                Guardar Escenario
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder='Ej: "Con 1 técnico extra"'
+                  value={scenarioName}
+                  onChange={(e) => setScenarioName(e.target.value)}
+                  className="text-sm"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveScenario()}
+                />
+                <Button 
+                  size="sm" 
+                  onClick={handleSaveScenario}
+                  disabled={!scenarioName.trim()}
+                  className="shrink-0"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {scenarios.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full text-xs" 
+                  onClick={() => setShowScenarios(!showScenarios)}
+                >
+                  <FolderOpen className="h-3.5 w-3.5 mr-1.5" />
+                  {showScenarios ? 'Ocultar' : 'Ver'} Escenarios ({scenarios.length})
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -175,8 +303,13 @@ export function SimulatorClient({ initialFixedCosts, initialPrice, initialDirect
                   {breakEvenPoint} <span className="text-lg font-medium opacity-75 ml-1">trabajos / mes</span>
                 </div>
                 <p className="text-xs opacity-75 mt-3 leading-snug">
-                  Debes cerrar al menos {breakEvenPoint} cotizaciones para cubrir todos tus costos fijos de {formatCurrency(fixedCosts)}.
+                  Debes cerrar al menos {breakEvenPoint} cotizaciones para cubrir todos tus costos fijos de {formatCurrency(totalFixedCosts)}.
                 </p>
+                {extraStaff > 0 && (
+                  <p className="text-xs opacity-90 mt-2 bg-white/10 rounded px-2 py-1">
+                    Incluye {extraStaff} persona{extraStaff > 1 ? 's' : ''} extra
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -189,7 +322,7 @@ export function SimulatorClient({ initialFixedCosts, initialPrice, initialDirect
                   {breakEvenPoint + 2} <span className="text-lg font-medium text-muted-foreground ml-1">trabajos</span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-3 leading-snug">
-                  Generaría una Utilidad Neta proyectada de <span className="font-semibold text-primary">{formatCurrency((marginBrutoPorTrabajo * (breakEvenPoint + 2)) - fixedCosts)}</span>
+                  Generaría una Utilidad Neta proyectada de <span className="font-semibold text-primary">{formatCurrency(profitAt3)}</span>
                 </p>
               </CardContent>
             </Card>
@@ -200,6 +333,7 @@ export function SimulatorClient({ initialFixedCosts, initialPrice, initialDirect
               <CardTitle className="text-lg">Proyección de Rentabilidad</CardTitle>
               <CardDescription>
                 Cruce de Ingresos Totales vs Costos Totales
+                {extraStaff > 0 && <span className="ml-1 text-blue-500">(con {extraStaff} contratación{extraStaff > 1 ? 'es' : ''} extra)</span>}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -232,8 +366,7 @@ export function SimulatorClient({ initialFixedCosts, initialPrice, initialDirect
                     />
                     <Tooltip content={<CustomTooltip />} />
                     
-                    {/* Línea horizontal del punto 0 para utilidad */}
-                    <ReferenceLine y={fixedCosts} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" opacity={0.5} label={{ position: 'insideTopLeft', value: 'Costos Fijos', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
+                    <ReferenceLine y={totalFixedCosts} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" opacity={0.5} label={{ position: 'insideTopLeft', value: 'Costos Fijos', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} />
                     <ReferenceLine x={baseEquilibrio} stroke="hsl(var(--primary))" strokeDasharray="5 5" opacity={0.7} />
 
                     <Area 
@@ -261,6 +394,72 @@ export function SimulatorClient({ initialFixedCosts, initialPrice, initialDirect
           </Card>
         </div>
       </div>
+
+      {/* COMPARADOR DE ESCENARIOS */}
+      {showScenarios && scenarios.length > 0 && (
+        <Card className="shadow-sm overflow-hidden border-blue-200 dark:border-blue-900">
+          <CardHeader className="bg-blue-50 dark:bg-blue-950/30 border-b pb-3">
+            <CardTitle className="text-lg flex items-center">
+              <FolderOpen className="mr-2 h-5 w-5 text-blue-500" />
+              Escenarios Guardados
+            </CardTitle>
+            <CardDescription>Compara tus planes de negocio lado a lado. Haz clic en un escenario para cargarlo.</CardDescription>
+          </CardHeader>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-secondary/40 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Escenario</th>
+                  <th className="px-4 py-3 font-semibold text-right">Costos Fijos</th>
+                  <th className="px-4 py-3 font-semibold text-right">Personal Extra</th>
+                  <th className="px-4 py-3 font-semibold text-right">Precio/Trabajo</th>
+                  <th className="px-4 py-3 font-semibold text-right">Margen %</th>
+                  <th className="px-4 py-3 font-semibold text-center bg-primary/5">Break-Even</th>
+                  <th className="px-4 py-3 font-semibold text-right bg-primary/10">Utilidad (Meta)</th>
+                  <th className="px-4 py-3 w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {scenarios.map((s) => (
+                  <tr 
+                    key={s.id} 
+                    className="border-b border-border/50 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 cursor-pointer transition-colors"
+                    onClick={() => handleLoadScenario(s)}
+                  >
+                    <td className="px-4 py-3 font-medium">{s.name}</td>
+                    <td className="px-4 py-3 text-right">{formatCurrency(s.fixedCosts + s.staffCost)}</td>
+                    <td className="px-4 py-3 text-right">
+                      {s.extraStaff > 0 
+                        ? <span className="text-blue-600 font-medium">+{s.extraStaff} ({formatCurrency(s.staffCost)})</span>
+                        : <span className="text-muted-foreground">—</span>
+                      }
+                    </td>
+                    <td className="px-4 py-3 text-right">{formatCurrency(s.price)}</td>
+                    <td className="px-4 py-3 text-right font-medium">{s.margin.toFixed(1)}%</td>
+                    <td className="px-4 py-3 text-center font-bold bg-primary/5">{s.breakEvenPoint} T.</td>
+                    <td className={cn("px-4 py-3 text-right font-bold bg-primary/10", s.profitAt3 >= 0 ? "text-primary" : "text-destructive")}>
+                      {formatCurrency(s.profitAt3)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => { e.stopPropagation(); handleDeleteScenario(s.id) }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="bg-muted p-3 border-t text-xs text-muted-foreground text-center">
+            Haz clic en una fila para cargar ese escenario en el simulador
+          </div>
+        </Card>
+      )}
 
       {/* TABLA DE SIMULACIÓN */}
       <Card className="shadow-sm overflow-hidden">
@@ -293,7 +492,7 @@ export function SimulatorClient({ initialFixedCosts, initialPrice, initialDirect
           </table>
         </div>
         <div className="bg-muted p-4 border-t flex items-center justify-between text-xs text-muted-foreground">
-          <span className="flex items-center"><Info className="w-4 h-4 mr-2" /> La Utilidad Neta mostrada ya ha descontado los costos operacionales fijos ($119.500).</span>
+          <span className="flex items-center"><Info className="w-4 h-4 mr-2" /> La Utilidad Neta mostrada ya ha descontado los costos operacionales fijos ({formatCurrency(totalFixedCosts)}).</span>
           <span>Modelo de análisis Veltrium Group</span>
         </div>
       </Card>
