@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -64,15 +65,17 @@ export function TransactionRowActions({ transaction }: { transaction: any }) {
           <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            className="text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
-            onClick={() => setIsVoidDialogOpen(true)}
-          >
-            <Ban className="mr-2 h-4 w-4" />
-            Anular transacción
-          </DropdownMenuItem>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              className="text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
+              onClick={() => setIsVoidDialogOpen(true)}
+            >
+              <Ban className="mr-2 h-4 w-4" />
+              Anular transacción
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
 
