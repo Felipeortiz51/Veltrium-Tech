@@ -3,30 +3,12 @@
 import { revalidatePath } from 'next/cache'
 import { createTransaction, voidTransaction, updateTransaction } from '@/services/transactions'
 import { TransactionFormValues, voidTransactionSchema, VoidTransactionValues } from '@/lib/validators'
-
-// TODO: In Phase 5 we will use NextAuth to get the real session
-const DEFAULT_COMPANY_ID = 'clp8a2x4f000xyzcompany123' // ID ficticio inicial, se corregirá con Prisma fetch
-const DEFAULT_USER_ID = 'clp8a2y4g001xyzuser456'
-
-// Fetch real context dynamically for MVP (before NextAuth)
-import prisma from '@/lib/prisma'
-
-async function getSessionContext() {
-  // TODO(SECURITY): MVP only. Current implementation takes the first available company/user arbitrarily.
-  // In a multi-tenant environment, this will cause cross-tenant data leaks.
-  // Must be refactored to use NextAuth session exactly like: session.user.companyId
-  const company = await prisma.company.findFirst()
-  const user = await prisma.user.findFirst()
-  
-  if (!company || !user) throw new Error("No hay empresa o usuario configurado (Run Seed).")
-  
-  return { companyId: company.id, userId: user.id }
-}
+import { getAuthSession } from '@/lib/auth'
 
 export async function createTransactionAction(data: TransactionFormValues) {
   try {
-    const { companyId, userId } = await getSessionContext()
-    await createTransaction(data, companyId, userId)
+    const session = await getAuthSession()
+    await createTransaction(data, session.companyId, session.userId)
     revalidatePath('/transactions')
     return { success: true }
   } catch (error: any) {
@@ -40,10 +22,10 @@ export async function createTransactionAction(data: TransactionFormValues) {
 
 export async function updateTransactionAction(data: TransactionFormValues) {
   if (!data.id) return { success: false, error: "ID de transacción requerido." }
-  
+
   try {
-    const { companyId } = await getSessionContext()
-    await updateTransaction(data.id, data, companyId)
+    const session = await getAuthSession()
+    await updateTransaction(data.id, data, session.companyId)
     revalidatePath('/transactions')
     return { success: true }
   } catch (error: any) {
@@ -60,8 +42,8 @@ export async function voidTransactionAction(data: VoidTransactionValues) {
   if (!parsed.success) return { success: false, error: "Razón detallada requerida." }
 
   try {
-    const { companyId } = await getSessionContext()
-    await voidTransaction(parsed.data.id, parsed.data.voidReason, companyId)
+    const session = await getAuthSession()
+    await voidTransaction(parsed.data.id, parsed.data.voidReason, session.companyId)
     revalidatePath('/transactions')
     return { success: true }
   } catch (error: any) {

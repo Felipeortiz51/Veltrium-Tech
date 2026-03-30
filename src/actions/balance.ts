@@ -3,15 +3,14 @@
 import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 import { AssetType, LiabilityType } from "@prisma/client"
+import { getAuthSession } from "@/lib/auth"
 
 export async function createAssetAction(data: { name: string; value: number; type: AssetType }) {
   try {
-    // TODO(SECURITY): Obtener companyId desde la sesión autenticada (NextAuth) para evitar vulnerabilidad multi-tenant.
-    const company = await prisma.company.findFirst()
-    if (!company) throw new Error("No company found")
+    const session = await getAuthSession()
 
     await prisma.asset.create({
-      data: { ...data, companyId: company.id }
+      data: { ...data, companyId: session.companyId }
     })
 
     revalidatePath("/balance")
@@ -33,11 +32,10 @@ export async function deleteAssetAction(id: string) {
 
 export async function createLiabilityAction(data: { name: string; value: number; type: LiabilityType }) {
   try {
-    const company = await prisma.company.findFirst()
-    if (!company) throw new Error("No company found")
+    const session = await getAuthSession()
 
     await prisma.liability.create({
-      data: { ...data, companyId: company.id }
+      data: { ...data, companyId: session.companyId }
     })
 
     revalidatePath("/balance")

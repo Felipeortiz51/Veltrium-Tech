@@ -2,42 +2,30 @@ import prisma from "@/lib/prisma"
 import { getMonthlyMetrics } from "@/services/reports"
 import { BalanceClient } from "@/components/balance/balance-client"
 import { Landmark } from "lucide-react"
+import { getAuthSession } from "@/lib/auth"
 
 export const dynamic = 'force-dynamic'
 
 export default async function BalancePage() {
-  const company = await prisma.company.findFirst()
-  if (!company) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center text-muted-foreground">
-        No hay empresa configurada.
-      </div>
-    )
-  }
+  const session = await getAuthSession()
 
-  // 1. Obtener Activos (manuales)
   const assets = await prisma.asset.findMany({
-    where: { companyId: company.id },
+    where: { companyId: session.companyId },
     orderBy: { updatedAt: 'desc' }
   })
 
-  // 2. Obtener Pasivos (manuales)
   const manualLiabilities = await prisma.liability.findMany({
-    where: { companyId: company.id },
+    where: { companyId: session.companyId },
     orderBy: { updatedAt: 'desc' }
   })
 
-  // 3. Obtener Pasivo Automático (IVA a Pagar del Mes en curso)
   const today = new Date()
-  const metrics = await getMonthlyMetrics(company.id, today)
+  const metrics = await getMonthlyMetrics(session.companyId, today)
   const autoIvaPayable = Math.max(0, metrics.ivaAPagar)
 
-  // 4. Calcular Efectivo en Caja automáticamente
-  //    Sumamos todos los ingresos PAGADOS y restamos todos los egresos PAGADOS (no anulados)
-  //    Esto refleja el dinero real que ha entrado y salido de la empresa
   const paidTransactions = await prisma.transaction.findMany({
     where: {
-      companyId: company.id,
+      companyId: session.companyId,
       isVoided: false,
       status: 'PAID' as any
     } as any,
@@ -65,10 +53,10 @@ export default async function BalancePage() {
         </h2>
         <p className="text-muted-foreground mt-1">Estado de situación patrimonial corporativo.</p>
       </div>
-      
-      <BalanceClient 
-        assets={assets} 
-        manualLiabilities={manualLiabilities} 
+
+      <BalanceClient
+        assets={assets}
+        manualLiabilities={manualLiabilities}
         autoIvaPayable={autoIvaPayable}
         autoCashPosition={autoCashPosition}
       />

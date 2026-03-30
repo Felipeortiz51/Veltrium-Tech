@@ -12,12 +12,10 @@ import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { ProjectForm } from './project-form'
 
-export function ProjectsClient({ 
-  data, 
-  companyId 
-}: { 
-  data: any[],
-  companyId: string 
+export function ProjectsClient({
+  data
+}: {
+  data: any[]
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState("")
@@ -44,7 +42,7 @@ export function ProjectsClient({
               <DialogTitle>Abrir Centro de Costo</DialogTitle>
               <DialogDescription>A partir de ahora podrás agrupar ingresos y materiales a este nombre.</DialogDescription>
             </DialogHeader>
-            <ProjectForm companyId={companyId} onSuccess={() => setIsOpen(false)} />
+            <ProjectForm onSuccess={() => setIsOpen(false)} />
           </DialogContent>
         </Dialog>
       </div>

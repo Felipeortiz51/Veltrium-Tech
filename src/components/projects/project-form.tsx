@@ -19,12 +19,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Loader2 } from "lucide-react"
 
-export function ProjectForm({ 
-  companyId,
-  onSuccess 
-}: { 
-  companyId: string,
-  onSuccess: () => void 
+export function ProjectForm({
+  onSuccess
+}: {
+  onSuccess: () => void
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -40,7 +38,7 @@ export function ProjectForm({
   async function onSubmit(data: ProjectFormValues) {
     setIsSubmitting(true)
     try {
-      const res = await createProjectAction({ ...data, companyId })
+      const res = await createProjectAction(data)
       if (res.success) {
         toast.success("Centro de costo creado con éxito")
         onSuccess()

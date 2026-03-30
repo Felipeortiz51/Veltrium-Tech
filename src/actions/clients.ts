@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
+import { getAuthSession } from "@/lib/auth"
 
 export async function createClientAction(data: {
   name: string
@@ -12,22 +13,19 @@ export async function createClientAction(data: {
   notes?: string
 }) {
   try {
-    // TODO(SECURITY): Reemplazar findFirst arbitrario por sesión NextAuth real (ej: session.user.companyId)
-    // para evitar cruce de datos entre diferentes empresas en el mismo servidor.
-    const company = await prisma.company.findFirst()
-    if (!company) throw new Error("No company found")
+    const session = await getAuthSession()
 
     if (!data.name) throw new Error("Name is required")
 
     const client = await prisma.client.create({
       data: {
         ...data,
-        companyId: company.id
+        companyId: session.companyId
       }
     })
 
     revalidatePath("/clients")
-    revalidatePath("/transactions") // In case they select it
+    revalidatePath("/transactions")
     return { success: true, client }
   } catch (error: any) {
     return { success: false, error: error.message }

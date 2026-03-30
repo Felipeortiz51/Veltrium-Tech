@@ -1,11 +1,12 @@
 import { PrismaClient, TransactionType, ExpenseSubtype } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
 async function main() {
-  // Crear empresa por defecto (Veltrium Tech)
+  // Crear empresa Veltrium Tech
   const veltrium = await prisma.company.upsert({
-    where: { rut: '76.123.456-7' }, // Placeholder RUT para la MVP
+    where: { rut: '76.123.456-7' },
     update: {},
     create: {
       name: 'Veltrium Tech SpA',
@@ -101,27 +102,27 @@ async function main() {
         name: OPERATIONAL_EXPENSES[i],
         type: TransactionType.EXPENSE,
         subtype: ExpenseSubtype.OPERATIONAL,
-        sortOrder: i + DIRECT_COSTS.length, // Para listarlos después de los costos
+        sortOrder: i + DIRECT_COSTS.length,
         companyId: veltrium.id
       }
     })
   }
 
-  // Crear Usuario Admin (MVP)
-  // Usar hash bcrypt de "admin123" ($2b$10$X...)
+  // Crear Usuario Admin
+  const hashedPassword = await bcrypt.hash('admin123', 10)
   await prisma.user.upsert({
     where: { email: 'admin@veltriumgroup.cl' },
-    update: {},
+    update: { password: hashedPassword },
     create: {
       email: 'admin@veltriumgroup.cl',
-      name: 'Administrador (CEO)',
-      password: '$2b$10$YourBcryptHashGoesHereForSecurity', // Cambiar después
+      name: 'Felipe Ortiz',
+      password: hashedPassword,
       role: 'ADMIN',
       companyId: veltrium.id
     }
   })
 
-  console.log('Seed ejecutado correctamente: Empresa, Categorías y Usuario Admin creados.')
+  console.log('Seed ejecutado: Empresa, Categorías y Usuario Admin creados.')
 }
 
 main()

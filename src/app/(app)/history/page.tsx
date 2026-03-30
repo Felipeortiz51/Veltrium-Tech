@@ -1,26 +1,18 @@
-import prisma from "@/lib/prisma"
 import { getCompanyHistory } from "@/services/reports"
 import { formatCurrency } from "@/hooks/use-currency"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { History as HistoryIcon, TrendingUp, AlertCircle, BarChart3, CheckCircle2 } from "lucide-react"
+import { HistoryExport } from "@/components/history/history-export"
+import { getAuthSession } from "@/lib/auth"
 
 export const dynamic = 'force-dynamic'
 
 export default async function HistoryPage() {
-  const company = await prisma.company.findFirst()
-  
-  if (!company) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">No hay una empresa configurada.</p>
-      </div>
-    )
-  }
+  const session = await getAuthSession()
 
-  const history = await getCompanyHistory(company.id)
+  const history = await getCompanyHistory(session.companyId)
 
-  // Calcular métricas clave sobre el acumulado (como en el Excel)
   let utilidadAcumulada = 0
   let mejorMesMonto = 0
   let mejorMesStr = "-"
@@ -50,6 +42,12 @@ export default async function HistoryPage() {
         <p className="text-muted-foreground mt-1">Evolución contable mes a mes y métricas clave de rentabilidad acumulada.</p>
       </div>
 
+      {history.length > 0 && (
+        <div className="flex justify-end">
+          <HistoryExport history={history} />
+        </div>
+      )}
+
       {/* MÉTRICAS ACUMULADAS */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-sm border-border">
@@ -72,7 +70,7 @@ export default async function HistoryPage() {
           <CardContent className="p-6">
             <h3 className="text-sm font-medium text-muted-foreground mb-2">Margen Bruto Promedio</h3>
             <div className="text-2xl font-bold flex items-center gap-2">
-              {margenPromedio.toFixed(1)}% 
+              {margenPromedio.toFixed(1)}%
               {margenPromedio >= 40 ? <CheckCircle2 className="h-4 w-4 text-accent" /> : <AlertCircle className="h-4 w-4 text-yellow-500" />}
             </div>
             <p className="text-xs text-muted-foreground mt-1">

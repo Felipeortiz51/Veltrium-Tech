@@ -1,7 +1,8 @@
-import prisma from "@/lib/prisma"
 import { getMonthlyMetrics } from "@/services/reports"
 import { DollarSign, Wallet, TrendingUp, AlertTriangle, Percent, Briefcase, MinusCircle, Landmark } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { DashboardExport } from "@/components/dashboard/dashboard-export"
+import { getAuthSession } from "@/lib/auth"
 
 export const dynamic = 'force-dynamic'
 
@@ -10,33 +11,27 @@ function formatCurrency(amount: number) {
 }
 
 export default async function DashboardPage() {
-  const company = await prisma.company.findFirst()
-  
-  if (!company) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground">No hay una empresa configurada.</p>
-      </div>
-    )
-  }
+  const session = await getAuthSession()
 
   const today = new Date()
-  const metrics = await getMonthlyMetrics(company.id, today)
+  const metrics = await getMonthlyMetrics(session.companyId, today)
 
-  // Mes en texto
   const mesActual = new Intl.DateTimeFormat('es-CL', { month: 'long', year: 'numeric' }).format(today)
   const mesCapitalizado = mesActual.charAt(0).toUpperCase() + mesActual.slice(1)
 
   return (
     <div className="space-y-8 pb-8">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight text-primary">Estado de Resultados</h2>
-        <p className="text-muted-foreground mt-1">Periodo actual: <span className="font-semibold text-foreground">{mesCapitalizado}</span></p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-primary">Estado de Resultados</h2>
+          <p className="text-muted-foreground mt-1">Periodo actual: <span className="font-semibold text-foreground">{mesCapitalizado}</span></p>
+        </div>
+        <DashboardExport metrics={metrics} monthLabel={mesCapitalizado} />
       </div>
 
       {/* KPI Row 1: The Core Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        
+
         {/* FLUJO DE CAJA VS DEVENGADO */}
         <div className="rounded-xl border border-border bg-card text-card-foreground shadow-sm p-6 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-[100px] z-0" />
@@ -46,7 +41,7 @@ export default async function DashboardPage() {
           </div>
           <div className="relative z-10 mt-2">
             <div className="text-2xl font-bold text-primary">{formatCurrency(metrics.ingresosNetos)}</div>
-            
+
             <div className="mt-4 pt-3 border-t border-border/50">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-muted-foreground font-medium">Líquido en Caja:</span>
@@ -81,8 +76,8 @@ export default async function DashboardPage() {
         {/* MARGEN BRUTO */}
         <div className={cn(
           "rounded-xl border shadow-sm p-6 overflow-hidden relative",
-          metrics.margenBrutoPorcentaje >= 40 
-            ? "border-accent/40 bg-accent/5" 
+          metrics.margenBrutoPorcentaje >= 40
+            ? "border-accent/40 bg-accent/5"
             : metrics.margenBrutoPorcentaje > 0 ? "border-yellow-500/40 bg-yellow-500/5 text-yellow-800 dark:text-yellow-400" : "border-border bg-card"
         )}>
           <div className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
@@ -113,7 +108,7 @@ export default async function DashboardPage() {
           <div className="relative z-10 mt-2">
             <div className="text-2xl font-bold">{metrics.numeroTrabajosRealizados}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {metrics.numeroTrabajosRealizados > 0 
+              {metrics.numeroTrabajosRealizados > 0
                 ? `Promedio: ${formatCurrency(metrics.ingresosNetos / metrics.numeroTrabajosRealizados)} c/u`
                 : "Sin actividad en el periodo"}
             </p>
@@ -123,7 +118,7 @@ export default async function DashboardPage() {
 
       {/* Row 2: Bottom Line & Taxes */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        
+
         {/* GASTOS OPERACIONALES */}
         <div className="rounded-xl border border-border bg-card text-card-foreground shadow-sm p-6">
           <div className="flex flex-row items-center justify-between pb-2">
@@ -139,12 +134,12 @@ export default async function DashboardPage() {
         {/* UTILIDAD NETA */}
         <div className={cn(
           "rounded-xl border shadow-sm p-6 relative overflow-hidden",
-          metrics.utilidadNeta > 0 
-            ? "border-primary/50 bg-primary/10 text-primary-foreground" 
+          metrics.utilidadNeta > 0
+            ? "border-primary/50 bg-primary/10 text-primary-foreground"
             : "border-destructive/30 bg-destructive/5 text-destructive"
         )}>
           {metrics.utilidadNeta > 0 && <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16 z-0" />}
-          
+
           <div className="flex flex-row items-center justify-between pb-2 relative z-10">
             <h3 className={cn("tracking-tight text-sm font-semibold uppercase", metrics.utilidadNeta > 0 ? "text-primary" : "")}>
               Utilidad Neta

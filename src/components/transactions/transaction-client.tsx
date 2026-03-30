@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { PlusCircle, Search } from 'lucide-react'
+import { PlusCircle, Search, Download, FileSpreadsheet } from 'lucide-react'
+import { exportTransactionsExcel, exportTransactionsPDF } from '@/lib/exports'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
@@ -86,6 +87,14 @@ export function TransactionClient({
             <SelectItem value={TransactionType.EXPENSE}>Egresos</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex gap-2 ml-auto">
+          <Button variant="outline" size="sm" className="h-9" onClick={() => exportTransactionsExcel(filteredData, format(new Date(), 'yyyy-MM'))}>
+            <FileSpreadsheet className="mr-1.5 h-4 w-4" /> Excel
+          </Button>
+          <Button variant="outline" size="sm" className="h-9" onClick={() => exportTransactionsPDF(filteredData, format(new Date(), 'yyyy-MM'))}>
+            <Download className="mr-1.5 h-4 w-4" /> PDF
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md border bg-white shadow-sm overflow-hidden border-border/50">
