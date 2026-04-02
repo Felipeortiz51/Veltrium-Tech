@@ -23,26 +23,37 @@ export default async function BalancePage() {
   const metrics = await getMonthlyMetrics(session.companyId, today)
   const autoIvaPayable = Math.max(0, metrics.ivaAPagar)
 
-  const paidTransactions = await prisma.transaction.findMany({
+  const allTransactions = await prisma.transaction.findMany({
     where: {
       companyId: session.companyId,
       isVoided: false,
-      status: 'PAID' as any
     } as any,
     select: {
       type: true,
-      amount: true
-    }
+      amount: true,
+      status: true,
+    } as any
   })
 
   let autoCashPosition = 0
-  for (const t of paidTransactions) {
-    if (t.type === 'INCOME') {
-      autoCashPosition += t.amount
+  let autoReceivables = 0
+  let autoPayables = 0
+
+  for (const t of allTransactions) {
+    const status = (t as any).status
+    if (status === 'PAID') {
+      if (t.type === 'INCOME') autoCashPosition += t.amount
+      else autoCashPosition -= t.amount
     } else {
-      autoCashPosition -= t.amount
+      if (t.type === 'INCOME') autoReceivables += t.amount
+      else autoPayables += t.amount
     }
   }
+
+  const equityContributions = await (prisma as any).equityContribution.findMany({
+    where: { companyId: session.companyId },
+    orderBy: { createdAt: 'desc' }
+  })
 
   return (
     <div className="space-y-8 pb-8">
@@ -59,6 +70,9 @@ export default async function BalancePage() {
         manualLiabilities={manualLiabilities}
         autoIvaPayable={autoIvaPayable}
         autoCashPosition={autoCashPosition}
+        autoReceivables={autoReceivables}
+        autoPayables={autoPayables}
+        equityContributions={equityContributions}
       />
     </div>
   )

@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { MoreHorizontal, Ban, Loader2 } from 'lucide-react'
-import { voidTransactionAction } from '@/actions/transactions'
+import { MoreHorizontal, Ban, Loader2, CheckCircle } from 'lucide-react'
+import { voidTransactionAction, markPaidAction } from '@/actions/transactions'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,24 @@ export function TransactionRowActions({ transaction }: { transaction: any }) {
 
   if (transaction.isVoided) {
     return <div className="text-xs text-muted-foreground pr-2 italic">Anulada</div>
+  }
+
+  const isPending = transaction.status === 'PENDING'
+
+  async function handleMarkPaid() {
+    setIsSubmitting(true)
+    try {
+      const res = await markPaidAction(transaction.id)
+      if (res.success) {
+        toast.success('Transacción marcada como pagada.')
+      } else {
+        toast.error(res.error || 'No se pudo actualizar.')
+      }
+    } catch {
+      toast.error('Error de servidor.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   async function handleVoid() {
@@ -68,7 +86,17 @@ export function TransactionRowActions({ transaction }: { transaction: any }) {
           <DropdownMenuGroup>
             <DropdownMenuLabel>Acciones</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            {isPending && (
+              <DropdownMenuItem
+                className="text-emerald-600 focus:bg-emerald-50 focus:text-emerald-700 cursor-pointer"
+                onClick={handleMarkPaid}
+                disabled={isSubmitting}
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Marcar como Pagada
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
               className="text-red-600 focus:bg-red-50 focus:text-red-700 cursor-pointer"
               onClick={() => setIsVoidDialogOpen(true)}
             >

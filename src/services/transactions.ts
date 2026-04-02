@@ -91,6 +91,14 @@ export async function updateTransaction(id: string, data: TransactionFormValues,
   return transaction
 }
 
+export async function markTransactionPaid(id: string, companyId: string) {
+  const transaction = await prisma.transaction.update({
+    where: { id, companyId },
+    data: { status: 'PAID' } as any
+  })
+  return transaction
+}
+
 export async function voidTransaction(id: string, voidReason: string, companyId: string) {
   const transaction = await prisma.transaction.update({
     where: { id, companyId },

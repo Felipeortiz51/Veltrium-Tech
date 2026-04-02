@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createTransaction, voidTransaction, updateTransaction } from '@/services/transactions'
+import { createTransaction, voidTransaction, updateTransaction, markTransactionPaid } from '@/services/transactions'
 import { TransactionFormValues, voidTransactionSchema, VoidTransactionValues } from '@/lib/validators'
 import { getAuthSession } from '@/lib/auth'
 
@@ -34,6 +34,17 @@ export async function updateTransactionAction(data: TransactionFormValues) {
       return { success: false, error: "Conflicto de duplicidad en la base de datos." }
     }
     return { success: false, error: error.message || "Verifique si el mes está cerrado o los datos ingresados." }
+  }
+}
+
+export async function markPaidAction(id: string) {
+  try {
+    const session = await getAuthSession()
+    await markTransactionPaid(id, session.companyId)
+    revalidatePath('/transactions')
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message || "Error al marcar como pagada." }
   }
 }
 

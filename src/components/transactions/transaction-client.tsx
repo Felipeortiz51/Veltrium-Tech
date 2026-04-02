@@ -107,13 +107,14 @@ export function TransactionClient({
               <TableHead className="w-[30%]">Descripción</TableHead>
               <TableHead className="text-right">Monto Neto</TableHead>
               <TableHead className="text-right">Monto Total</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                   No se encontraron resultados.
                 </TableCell>
               </TableRow>
@@ -142,6 +143,13 @@ export function TransactionClient({
                   </TableCell>
                   <TableCell className="text-right font-bold">
                     {formatCurrency(t.amount)}
+                  </TableCell>
+                  <TableCell>
+                    {t.status === 'PAID' ? (
+                      <Badge variant="outline" className="text-emerald-700 bg-emerald-50 border-emerald-200">Pagado</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-orange-700 bg-orange-50 border-orange-200">Pendiente</Badge>
+                    )}
                   </TableCell>
                   <TableCell>
                     <TransactionRowActions transaction={t} />

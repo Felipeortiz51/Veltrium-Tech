@@ -1,29 +1,49 @@
 "use client"
 
 import { useState } from "react"
-import { Building2, Wallet, Plus, Trash2, Landmark, TrendingUp } from "lucide-react"
+import { Building2, Wallet, Plus, Trash2, Landmark, TrendingUp, Users, CheckCircle, Clock } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { formatCurrency } from "@/hooks/use-currency"
-import { Asset, Liability, AssetType, LiabilityType } from "@prisma/client"
+import { Asset, Liability } from "@prisma/client"
 import { createAssetAction, deleteAssetAction, createLiabilityAction, deleteLiabilityAction } from "@/actions/balance"
+import { createEquityAction, markDepositedAction, deleteEquityAction } from "@/actions/equity"
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 
-export function BalanceClient({ 
-  assets, 
-  manualLiabilities, 
+interface EquityContribution {
+  id: string
+  partnerName: string
+  description: string | null
+  amount: number
+  status: 'PENDING' | 'DEPOSITED'
+  promisedDate: Date | null
+  depositedAt: Date | null
+  createdAt: Date
+}
+
+export function BalanceClient({
+  assets,
+  manualLiabilities,
   autoIvaPayable,
-  autoCashPosition
-}: { 
+  autoCashPosition,
+  autoReceivables,
+  autoPayables,
+  equityContributions
+}: {
   assets: Asset[]
   manualLiabilities: Liability[]
   autoIvaPayable: number
-  autoCashPosition: number 
+  autoCashPosition: number
+  autoReceivables: number
+  autoPayables: number
+  equityContributions: EquityContribution[]
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -38,14 +58,25 @@ export function BalanceClient({
   const [liabilityName, setLiabilityName] = useState("")
   const [liabilityValue, setLiabilityValue] = useState("")
 
+  // Equity Form State
+  const [equityOpen, setEquityOpen] = useState(false)
+  const [eqPartner, setEqPartner] = useState("")
+  const [eqDescription, setEqDescription] = useState("")
+  const [eqAmount, setEqAmount] = useState("")
+  const [eqStatus, setEqStatus] = useState<"PENDING" | "DEPOSITED">("PENDING")
+
+  // Cálculos
   const totalManualAssets = assets.reduce((acc, el) => acc + el.value, 0)
-  const totalAssets = totalManualAssets + Math.max(0, autoCashPosition)
+  const depositedEquity = equityContributions.filter(e => e.status === 'DEPOSITED').reduce((acc, e) => acc + e.amount, 0)
+  const pendingEquity = equityContributions.filter(e => e.status === 'PENDING').reduce((acc, e) => acc + e.amount, 0)
+  const totalAssets = totalManualAssets + Math.max(0, autoCashPosition) + autoReceivables + pendingEquity
   const totalManualLiabilities = manualLiabilities.reduce((acc, el) => acc + el.value, 0)
-  const totalLiabilities = totalManualLiabilities + autoIvaPayable
+  const totalLiabilities = totalManualLiabilities + autoIvaPayable + autoPayables
+  const totalEquity = depositedEquity + pendingEquity
 
   const netWorth = totalAssets - totalLiabilities
 
-  async function handleAddAsset(e: React.FormEvent) {
+  async function handleAddAsset(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!assetName || !assetValue) return toast.error("Llena todos los campos")
     setLoading(true)
@@ -66,7 +97,7 @@ export function BalanceClient({
     }
   }
 
-  async function handleAddLiability(e: React.FormEvent) {
+  async function handleAddLiability(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!liabilityName || !liabilityValue) return toast.error("Llena todos los campos")
     setLoading(true)
@@ -98,6 +129,49 @@ export function BalanceClient({
     if(!confirm("¿Eliminar este pasivo?")) return
     await deleteLiabilityAction(id)
     toast.success("Pasivo eliminado")
+    router.refresh()
+  }
+
+  async function handleAddEquity(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!eqPartner || !eqAmount) return toast.error("Llena todos los campos")
+    setLoading(true)
+    const res = await createEquityAction({
+      partnerName: eqPartner,
+      description: eqDescription || undefined,
+      amount: parseInt(eqAmount, 10),
+      status: eqStatus,
+    })
+    setLoading(false)
+    if (res.success) {
+      toast.success("Aporte registrado")
+      setEquityOpen(false)
+      setEqPartner("")
+      setEqDescription("")
+      setEqAmount("")
+      setEqStatus("PENDING")
+      router.refresh()
+    } else {
+      toast.error(res.error)
+    }
+  }
+
+  async function handleMarkDeposited(id: string) {
+    setLoading(true)
+    const res = await markDepositedAction(id)
+    setLoading(false)
+    if (res.success) {
+      toast.success("Aporte marcado como depositado")
+      router.refresh()
+    } else {
+      toast.error(res.error)
+    }
+  }
+
+  async function handleDeleteEquity(id: string) {
+    if(!confirm("¿Eliminar este aporte?")) return
+    await deleteEquityAction(id)
+    toast.success("Aporte eliminado")
     router.refresh()
   }
 
@@ -173,7 +247,7 @@ export function BalanceClient({
               <span className="text-primary">{formatCurrency(totalAssets)}</span>
             </div>
             <div className="overflow-y-auto max-h-[400px]">
-              {/* AUTO ASSET: EFECTIVO EN CAJA */}
+              {/* AUTO: EFECTIVO EN CAJA */}
               {autoCashPosition !== 0 && (
                 <li className="p-4 flex items-center justify-between bg-emerald-500/5 group">
                   <div className="flex flex-col">
@@ -181,17 +255,51 @@ export function BalanceClient({
                       <TrendingUp className="h-3 w-3 text-emerald-500" />
                       Efectivo en Caja
                     </span>
-                    <span className="text-xs text-muted-foreground">Auto-calculado: Ingresos pagados − Egresos pagados</span>
+                    <span className="text-xs text-muted-foreground">Ingresos pagados − Egresos pagados</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-sm tracking-tight text-emerald-600 dark:text-emerald-500">{formatCurrency(autoCashPosition)}</span>
+                    <span className="font-bold text-sm tracking-tight text-emerald-600">{formatCurrency(autoCashPosition)}</span>
+                    <div className="w-7 h-7" />
+                  </div>
+                </li>
+              )}
+
+              {/* AUTO: CUENTAS POR COBRAR (Ingresos pendientes) */}
+              {autoReceivables > 0 && (
+                <li className="p-4 flex items-center justify-between bg-blue-500/5 group">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                      <Clock className="h-3 w-3 text-blue-500" />
+                      Cuentas por Cobrar
+                    </span>
+                    <span className="text-xs text-muted-foreground">Ingresos pendientes de pago</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-sm tracking-tight text-blue-600">{formatCurrency(autoReceivables)}</span>
+                    <div className="w-7 h-7" />
+                  </div>
+                </li>
+              )}
+
+              {/* AUTO: APORTES PENDIENTES DE SOCIOS */}
+              {pendingEquity > 0 && (
+                <li className="p-4 flex items-center justify-between bg-violet-500/5 group">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                      <Users className="h-3 w-3 text-violet-500" />
+                      Aportes por Recibir
+                    </span>
+                    <span className="text-xs text-muted-foreground">Capital comprometido pendiente de depósito</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-sm tracking-tight text-violet-600">{formatCurrency(pendingEquity)}</span>
                     <div className="w-7 h-7" />
                   </div>
                 </li>
               )}
 
               {/* MANUAL ASSETS */}
-              {assets.length === 0 && autoCashPosition === 0 ? (
+              {assets.length === 0 && autoCashPosition === 0 && autoReceivables === 0 && pendingEquity === 0 ? (
                 <div className="p-8 text-center text-muted-foreground text-sm">
                   Sin activos registrados. Añade capital o equipos arriba.
                 </div>
@@ -268,20 +376,37 @@ export function BalanceClient({
             <div className="overflow-y-auto max-h-[400px]">
               <ul className="divide-y divide-border/50">
                 
-                {/* AUTO LIABILITY (IVA) */}
+                {/* AUTO: IVA */}
                 <li className="p-4 flex items-center justify-between bg-amber-500/5 group">
                   <div className="flex flex-col">
                     <span className="font-semibold text-sm text-foreground flex items-center gap-1.5">
                       <TrendingUp className="h-3 w-3 text-amber-500" />
                       Provisión IVA Fisco
                     </span>
-                    <span className="text-xs text-muted-foreground">Impuesto a pagar (Auto-calculado mes en curso)</span>
+                    <span className="text-xs text-muted-foreground">Impuesto a pagar (mes en curso)</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-bold text-sm tracking-tight text-amber-600 dark:text-amber-500 truncate">{formatCurrency(autoIvaPayable)}</span>
-                    <div className="w-7 h-7" /> {/* Spacer para alinear con botones basurero */}
+                    <span className="font-bold text-sm tracking-tight text-amber-600">{formatCurrency(autoIvaPayable)}</span>
+                    <div className="w-7 h-7" />
                   </div>
                 </li>
+
+                {/* AUTO: CUENTAS POR PAGAR (Egresos pendientes) */}
+                {autoPayables > 0 && (
+                  <li className="p-4 flex items-center justify-between bg-orange-500/5 group">
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                        <Clock className="h-3 w-3 text-orange-500" />
+                        Cuentas por Pagar
+                      </span>
+                      <span className="text-xs text-muted-foreground">Egresos pendientes de pago</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-sm tracking-tight text-orange-600">{formatCurrency(autoPayables)}</span>
+                      <div className="w-7 h-7" />
+                    </div>
+                  </li>
+                )}
 
                 {/* MANUAL LIABILITIES */}
                 {manualLiabilities.map(l => (
@@ -315,6 +440,123 @@ export function BalanceClient({
         </Card>
 
       </div>
+
+      {/* PATRIMONIO / CAPITAL DE SOCIOS */}
+      <Card className="shadow-sm border-t-4 border-t-violet-500/60">
+        <CardHeader className="flex flex-row items-center justify-between pb-4 bg-secondary/10 border-b">
+          <div>
+            <CardTitle className="text-xl flex items-center text-violet-700">
+              <Users className="mr-2 h-5 w-5" />
+              Capital de Socios
+            </CardTitle>
+            <CardDescription>Aportes comprometidos y depositados</CardDescription>
+          </div>
+          <Dialog open={equityOpen} onOpenChange={setEquityOpen}>
+            <DialogTrigger render={props => (
+              <Button {...props} variant="outline" size="sm" className="h-8">
+                <Plus className="mr-1 h-3 w-3" /> Registrar Aporte
+              </Button>
+            )}/>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle>Registrar Aporte de Capital</DialogTitle>
+                <DialogDescription>
+                  Registra el compromiso o depósito de un socio.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleAddEquity} className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Nombre del Socio</Label>
+                  <Input value={eqPartner} onChange={e => setEqPartner(e.target.value)} placeholder="Ej: Charles Charcas" autoFocus />
+                </div>
+                <div className="space-y-2">
+                  <Label>Descripción (opcional)</Label>
+                  <Input value={eqDescription} onChange={e => setEqDescription(e.target.value)} placeholder="Ej: Aporte inicial constitución" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Monto ($ CLP)</Label>
+                  <Input type="number" value={eqAmount} onChange={e => setEqAmount(e.target.value)} placeholder="500000" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Estado</Label>
+                  <Select value={eqStatus} onValueChange={(v) => setEqStatus(v as any)}>
+                    <SelectTrigger>
+                      <span data-slot="select-value">
+                        {eqStatus === "PENDING" ? "Comprometido (Pendiente)" : "Ya Depositado"}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PENDING">Comprometido (Pendiente)</SelectItem>
+                      <SelectItem value="DEPOSITED">Ya Depositado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end pt-2 gap-2">
+                  <DialogClose render={props => <Button {...props} type="button" variant="outline">Cancelar</Button>} />
+                  <Button type="submit" disabled={loading} className="bg-violet-600 hover:bg-violet-700 text-white">
+                    {loading ? "Espera..." : "Guardar Aporte"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="bg-violet-500/5 p-4 flex justify-between items-center font-bold text-lg border-b text-violet-700">
+            <span>Capital Total:</span>
+            <span>{formatCurrency(totalEquity)}</span>
+          </div>
+          <div className="overflow-y-auto max-h-[400px]">
+            <ul className="divide-y divide-border/50">
+              {equityContributions.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  Sin aportes registrados. Registra el capital de los socios.
+                </div>
+              ) : (
+                equityContributions.map(e => (
+                  <li key={e.id} className="p-4 flex items-center justify-between hover:bg-muted/30 group">
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-sm flex items-center gap-2">
+                        {e.partnerName}
+                        {e.status === 'DEPOSITED' ? (
+                          <Badge variant="outline" className="text-emerald-700 bg-emerald-50 border-emerald-200 text-[10px]">Depositado</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-orange-700 bg-orange-50 border-orange-200 text-[10px]">Pendiente</Badge>
+                        )}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {e.description || "Aporte de capital"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm tracking-tight">{formatCurrency(e.amount)}</span>
+                      {e.status === 'PENDING' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-emerald-600 opacity-0 group-hover:opacity-100 hover:text-emerald-700 hover:bg-emerald-50 transition-opacity"
+                          onClick={() => handleMarkDeposited(e.id)}
+                          title="Marcar como depositado"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+                        onClick={() => handleDeleteEquity(e.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
